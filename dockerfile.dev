@@ -4,15 +4,18 @@ WORKDIR /app
 # Installa LibreOffice
 RUN apt-get update && apt-get install -y libreoffice && rm -rf /var/lib/apt/lists/*
 
-# Copia i file di progetto e ripristina i pacchetti
+# Copia solo i file di progetto per ottimizzare la cache
 COPY *.csproj ./
 RUN dotnet restore
 
-# Copia tutto il codice sorgente
+# Copia il resto del codice sorgente
 COPY . ./
 
-# Espone la porta
+# Espone la porta 8080 per il server
 EXPOSE 8080
 
+# Imposta la variabile d'ambiente per lo sviluppo
+ENV ASPNETCORE_ENVIRONMENT=Development
+
 # Avvia in modalità sviluppo con hot reload
-CMD ["dotnet", "watch", "run", "--urls", "http://+:8080"]
+ENTRYPOINT ["dotnet", "watch", "run", "--urls", "http://+:8080"]

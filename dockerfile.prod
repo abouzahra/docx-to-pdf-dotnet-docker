@@ -1,28 +1,34 @@
-# Build stage
+# Comando per pushare e deployare automaticamente su Cloud Run:
+# gcloud builds submit --config=cloudbuild.yaml
+
+# Stage 1: Build
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /app
+
+# Copia e ripristina i pacchetti
+COPY ["DocxToPdf.csproj", "./"]
+RUN dotnet restore
+
+# Copia il resto del codice sorgente e compila
+COPY . ./
+RUN dotnet publish -c Release -o /app/publish
+
+# Stage 2: Runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 
 # Installa LibreOffice
 RUN apt-get update && apt-get install -y libreoffice && rm -rf /var/lib/apt/lists/*
 
-# Copia i file di progetto e ripristina i pacchetti
-COPY *.csproj ./
-RUN dotnet restore
+# Copia l'app pubblicata
+COPY --from=build /app/publish .
 
-# Copia tutto e compila
-COPY . ./
-RUN dotnet publish -c Release -o /out
-
-# Runtime stage
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
-WORKDIR /app
-
-# Copia solo i file pubblicati
-COPY --from=build /out ./
-
-# Espone la porta
+# Espone la porta 8080 per Cloud Run
 EXPOSE 8080
 
-# Avvia il server
-CMD ["dotnet", "docx_to_pdf_dotnet_docker.dll"]
+# Configura l'URL per Kestrel
+ENV ASPNETCORE_URLS=http://+:8080
+ENV ASPNETCORE_ENVIRONMENT=Production
 
+# Avvia l'applicazione
+ENTRYPOINT ["dotnet", "DocxToPdf.dll"]
